@@ -10,12 +10,40 @@ use axum::{
     routing::{get,get_service},
     Router,
     http::StatusCode,
+    Json,
 };
 use std::net::SocketAddr;
 use tower_http::{
     services::ServeDir,
     trace::{DefaultMakeSpan,TraceLayer},
 };
+use serde::{Deserialize, Serialize};
+#[derive(Debug, Serialize, Deserialize)]
+struct Claims {
+    sub: String,
+    company: String,
+    exp: usize,
+}
+//trait Loginable{}
+//
+#[derive(Debug, Serialize, Deserialize)]
+struct Logined {
+    logined: bool,
+    message: Option<Infomation>,
+}
+#[derive(Debug, Serialize, Deserialize)]
+struct Infomation {
+    name:String,
+    icon: String,
+}
+//impl Loginable for Logined{}
+//
+//#[derive(Debug, Serialize, Deserialize)]
+//struct Loginfailed {
+//    logintype: String,
+//    icon: String,
+//}
+//impl Loginable for Loginfailed{}
 #[tokio::main]
 async fn main() {
     // Set the RUST_LOG, if it hasn't been explicitly defined
@@ -38,6 +66,7 @@ async fn main() {
             }),
         )
         .route("/ws", get(show_form).post(accept_form))
+        .route("/login", get(show_form).post(login))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),
@@ -79,7 +108,7 @@ async fn accept_form(
             250 * 1024 * 1024 /* 250mb */
         },
     >,
-) {
+) -> String {
     while let Some(field) = multipart.next_field().await.unwrap() {
         let name = field.name().unwrap().to_string();
         let file_name = field.file_name().unwrap().to_string();
@@ -94,4 +123,41 @@ async fn accept_form(
             data.len()
         );
     }
+    return "sss".to_string();
+}
+async fn login(Json(input): Json<Claims>) -> Json<Logined> {
+    println!("{},{},{}",input.exp,input.company,input.sub);
+    if input.exp > 10 {
+    //    Json(Box::new(Logined{
+    //        icon:"test".to_string(),
+    //        name:"test".to_string(),
+    //    }))
+    //
+        Json(
+            Logined{
+                logined: true,
+                message: Some(
+                    Infomation{
+                        name: "test".to_string(),
+                        icon: "test".to_string(),
+                })
+            }
+        )
+    } else {
+        Json(
+            Logined{
+                logined:false,
+                message: None,
+            }
+        )
+    //    Json(Box::new(Loginfailed{
+    //        logintype: "Teacher".to_string(),
+    //        icon:"failed".to_string()
+    //    }))
+    }
+    //return Json(Claims{
+    //    sub: "beta".to_string(),
+    //    company: "beta".to_string(),
+    //    exp:1,
+    //});
 }
