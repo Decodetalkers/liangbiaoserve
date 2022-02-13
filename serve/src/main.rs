@@ -6,44 +6,22 @@
 
 use axum::{
     extract::{ContentLengthLimit, Multipart},
-    response::Html,
-    routing::{get,get_service},
-    Router,
     http::StatusCode,
-    Json,
+    response::Html,
+    routing::{get, get_service},
+    Json, Router,
 };
-use std::net::SocketAddr;
+use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
+use std::{net::SocketAddr, sync::Arc};
 use tower_http::{
     services::ServeDir,
-    trace::{DefaultMakeSpan,TraceLayer},
+    trace::{DefaultMakeSpan, TraceLayer},
 };
-use serde::{Deserialize, Serialize};
-#[derive(Debug, Serialize, Deserialize)]
-struct Claims {
-    sub: String,
-    company: String,
-    exp: usize,
-}
-//trait Loginable{}
-//
-#[derive(Debug, Serialize, Deserialize)]
-struct Logined {
-    logined: bool,
-    message: Option<Infomation>,
-}
-#[derive(Debug, Serialize, Deserialize)]
-struct Infomation {
-    name:String,
-    icon: String,
-}
-//impl Loginable for Logined{}
-//
-//#[derive(Debug, Serialize, Deserialize)]
-//struct Loginfailed {
-//    logintype: String,
-//    icon: String,
-//}
-//impl Loginable for Loginfailed{}
+mod sqlconnect;
+use sqlconnect::{logininto,registinto};
+mod utils;
+use utils::*;
+
 #[tokio::main]
 async fn main() {
     // Set the RUST_LOG, if it hasn't been explicitly defined
@@ -51,22 +29,42 @@ async fn main() {
         std::env::set_var("RUST_LOG", "example_multipart_form=debug,tower_http=debug")
     }
     tracing_subscriber::fmt::init();
-
+    let students =
+        std::env::var("STUDENTS").unwrap_or_else(|_| panic!("plese set the variable of STUDENTS"));
+    // Create a connection pool
+    //  for MySQL, use MySqlPoolOptions::new()
+    //  for SQLite, use SqlitePoolOptions::new()
+    //  etc.
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        //.connect("postgres://postgres:cht123456789@localhost/students")
+        .connect(&students)
+        .await
+        .unwrap_or_else(|_| panic!("nosuch database"));
+    let topool = Arc::new(pool);
+    let topool2 = Arc::clone(&topool);
     // build our application with some routes
     let app = Router::new()
         .fallback(
-            get_service(
-                ServeDir::new("dist").append_index_html_on_directories(true),
-            )
-            .handle_error(|error: std::io::Error| async move {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Unhandled internal error: {}", error),
-                )
-            }),
+            get_service(ServeDir::new("dist").append_index_html_on_directories(true)).handle_error(
+                |error: std::io::Error| async move {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Unhandled internal error: {}", error),
+                    )
+                },
+            ),
         )
         .route("/ws", get(show_form).post(accept_form))
-        .route("/login", get(show_form).post(login))
+        .route(
+            "/login",
+            get(show_form).post(|input: Json<ToLogin>| async move { login(input, &*topool).await }),
+        )
+        .route(
+            "/register",
+            get(show_form)
+                .post(|input: Json<ToLogin>| async move { register(input, &*topool2).await }),
+        )
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),
@@ -123,41 +121,20 @@ async fn accept_form(
             data.len()
         );
     }
-    return "sss".to_string();
+    "sss".to_string()
 }
-async fn login(Json(input): Json<Claims>) -> Json<Logined> {
-    println!("{},{},{}",input.exp,input.company,input.sub);
-    if input.exp > 10 {
-    //    Json(Box::new(Logined{
-    //        icon:"test".to_string(),
-    //        name:"test".to_string(),
-    //    }))
-    //
-        Json(
-            Logined{
-                logined: true,
-                message: Some(
-                    Infomation{
-                        name: "test".to_string(),
-                        icon: "test".to_string(),
-                })
-            }
-        )
-    } else {
-        Json(
-            Logined{
-                logined:false,
-                message: None,
-            }
-        )
-    //    Json(Box::new(Loginfailed{
-    //        logintype: "Teacher".to_string(),
-    //        icon:"failed".to_string()
-    //    }))
-    }
-    //return Json(Claims{
-    //    sub: "beta".to_string(),
-    //    company: "beta".to_string(),
-    //    exp:1,
-    //});
+
+async fn login(Json(input): Json<ToLogin>, pool: &Pool<Postgres>) -> Json<Logined> {
+    let information = logininto(pool, input).await.unwrap_or(None);
+    Json(Logined {
+        logined: information.is_some(),
+        message: information,
+    })
+}
+async fn register(Json(input): Json<ToLogin>, pool: &Pool<Postgres>) -> Json<Logined> {
+    let information = registinto(pool, input).await.unwrap();
+    Json(Logined {
+        logined: information.is_some(),
+        message: information,
+    })
 }
