@@ -13,7 +13,10 @@ pub async fn logininto(
     .await?;
     Ok(Some(output))
 }
-pub async fn registinto(pool: &Pool<Postgres>, tologin: ToLogin) -> Result<Option<Infomation>, sqlx::Error> {
+pub async fn registinto(
+    pool: &Pool<Postgres>,
+    tologin: ToLogin,
+) -> Result<Option<Infomation>, sqlx::Error> {
     let output = sqlx::query_as::<_, Infomation>(&format!(
         "SELECT name, icon from login 
             where name='{}' ",

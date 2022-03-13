@@ -21,10 +21,21 @@ pub struct Infomation {
     pub icon: String,
 }
 impl Infomation {
-    pub fn start(name:String) -> Self {
+    pub fn start(name: String) -> Self {
         Self {
             name,
             icon: "www.baidu.com".to_string(),
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Index {
+    pub filetype: String,
+    pub name: String,
+}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Succeeded {
+    pub succeed: bool,
+    pub error: Option<String>,
 }

@@ -1,16 +1,13 @@
-//! Run with
-//!
-//! ```not_rust
-//! cargo run -p example-multipart-form
-//! ```
-
 use axum::{
-    extract::{ContentLengthLimit, Multipart},
-    http::StatusCode,
+    extract::{ContentLengthLimit, Multipart,Path},
+    http::{StatusCode,header::{
+        HeaderMap,HeaderValue,HeaderName
+    }},
     response::Html,
     routing::{get, get_service},
     Json, Router,
 };
+use std::fs::read;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use std::{net::SocketAddr, sync::Arc};
 use tower_http::{
@@ -18,10 +15,17 @@ use tower_http::{
     trace::{DefaultMakeSpan, TraceLayer},
 };
 mod sqlconnect;
-use sqlconnect::{logininto,registinto};
+use sqlconnect::{logininto, registinto};
 mod utils;
 use utils::*;
-
+#[inline]
+fn home() -> String {
+    std::env::var("HOME").unwrap()
+}
+#[inline]
+fn savepath(file: String) -> String {
+    format!("{}/Service/{}", home(), file)
+}
 #[tokio::main]
 async fn main() {
     // Set the RUST_LOG, if it hasn't been explicitly defined
@@ -43,35 +47,50 @@ async fn main() {
         .unwrap_or_else(|_| panic!("nosuch database"));
     let topool = Arc::new(pool);
     let topool2 = Arc::clone(&topool);
+    //let statestart = State {
+    //    id : "None".to_string(),
+    //};
+    //let state = Arc::new(tokio::sync::Mutex::new(statestart));
+    //let state_change = Arc::clone(&state);
     // build our application with some routes
     let app = Router::new()
         .fallback(
-            get_service(ServeDir::new("dist").append_index_html_on_directories(true)).handle_error(
-                |error: std::io::Error| async move {
+            get_service(ServeDir::new("routes/upload").append_index_html_on_directories(true))
+                .handle_error(|error: std::io::Error| async move {
                     (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         format!("Unhandled internal error: {}", error),
                     )
-                },
-            ),
+                })
+                .post(accept_form),
         )
         .route("/ws", get(show_form).post(accept_form))
         .route(
             "/login",
-            get(show_form).post(|input: Json<ToLogin>| async move { login(input, &*topool).await }),
+            get(|| async {})
+                .post(|input: Json<ToLogin>| async move { login(input, &*topool).await }),
         )
         .route(
             "/register",
             get(show_form)
                 .post(|input: Json<ToLogin>| async move { register(input, &*topool2).await }),
         )
+        .route("/image/:id", get(show_image))
+        .route("/json/:id", get(show_json))
+        .route("/viewimage", get(img_source))
+        //.route("/preview", get(show_image_uploaded))
+        //.route("/preview2", get(show_image_uploaded)
+        //       .post(|Json(input): Json<State>| async move {
+        //            let mut statepost = state_change.lock().await;
+        //            statepost.id = input.id;
+        //       }))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),
         );
 
     // run it with hyper
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 4000));
     tracing::debug!("listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
@@ -85,7 +104,7 @@ async fn show_form() -> Html<&'static str> {
         <html>
             <head></head>
             <body>
-                <form action="/" method="post" enctype="multipart/form-data">
+                <form action="/ws" method="post" enctype="multipart/form-data">
                     <label>
                         Upload file:
                         <input type="file" name="file" multiple>
@@ -98,7 +117,19 @@ async fn show_form() -> Html<&'static str> {
         "#,
     )
 }
-
+async fn img_source() -> Html<&'static str>{
+    Html(
+        r#"
+        <!doctype html>
+        <html>
+            <head></head>
+            <body>
+                <img src="/image/akalin.png" />
+            </body>
+        </html>
+        "#
+    )
+}
 async fn accept_form(
     ContentLengthLimit(mut multipart): ContentLengthLimit<
         Multipart,
@@ -106,22 +137,99 @@ async fn accept_form(
             250 * 1024 * 1024 /* 250mb */
         },
     >,
-) -> String {
-    while let Some(field) = multipart.next_field().await.unwrap() {
-        let name = field.name().unwrap().to_string();
-        let file_name = field.file_name().unwrap().to_string();
-        let content_type = field.content_type().unwrap().to_string();
-        let data = field.bytes().await.unwrap();
+) -> Json<Succeeded> {
+    use std::fs::OpenOptions;
+    let time = chrono::offset::Utc::now().to_string();
+    let storagepath = base64::encode(time);
+    let savedpath = format!("{}/Service/{}",home(),storagepath);
+    let theresult : Result<(),Box<dyn std::error::Error>> = async {
+        tokio::fs::create_dir_all(&savedpath).await?;
+        let file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(format!("{}/index.json",savedpath))?;
+        let mut indexjson :Vec<Index> = vec![];
 
-        println!(
-            "Length of `{}` (`{}`: `{}`) is {} bytes",
-            name,
-            file_name,
-            content_type,
-            data.len()
-        );
+        while let Some(field) = multipart.next_field().await? {
+            let name = field.name().unwrap().to_string();
+            let file_name = field.file_name().unwrap().to_string();
+            let content_type = field.content_type().unwrap().to_string();
+            let data = field.bytes().await.unwrap();
+            //let temp = savepath(file_name.clone());
+            //println!("{temp}");
+            indexjson.push(Index { 
+                filetype: "Image".to_string(),
+                name: file_name.clone()
+            });
+            tokio::fs::write(format!("{}/{}",&savedpath,file_name), &data)
+                .await
+                .map_err(|err| err.to_string())?;
+            println!(
+                "Length of `{}` (`{}`: `{}`) is {} bytes",
+                name,
+                file_name,
+                content_type,
+                data.len()
+            );
+        }
+        serde_json::to_writer(&file, &indexjson)?;
+        Ok(())
+    }.await;
+    match theresult {
+        Ok(()) => Json(Succeeded {
+            succeed: true,
+            error: None,
+        }),
+        Err(e) => Json(Succeeded {
+            succeed: false,
+            error: Some(e.to_string())
+        })
     }
-    "sss".to_string()
+}
+async fn show_json(Path(id): Path<String>) -> Json<Option<Vec<Index>>> {
+    //文件扩展名
+    //let id = id.replace('$', "/");
+    //println!("{id}");
+    let show_json_prew : Result<Vec<Index>,Box<dyn std::error::Error>>= async {
+        let file_path = format!("{}/Service/{id}/index.json",home());
+        let file = std::fs::File::open(file_path)?;
+        Ok(serde_json::from_reader(file)?)
+    }.await;
+    match show_json_prew {
+        Ok(json) => Json(Some(json)),
+        Err(_) => Json(None)
+    }
+}
+//fn show_json_prew(id: String) -> Result<Vec<Index>,Box<dyn std::error::Error>> {
+//    //文件扩展名
+//    //let id = id.replace('$', "/");
+//    //println!("{id}");
+//    let file_path = format!("{}/Service/{id}/index.json",home());
+//    let file = std::fs::File::open(file_path)?;
+//    Ok(serde_json::from_reader(file)?)
+//}
+async fn show_image(Path(id): Path<String>) -> (HeaderMap, Vec<u8>) {
+    //文件扩展名
+    let id = id.replace('$', "/");
+    //println!("{id}");
+    let index = id.find('.').unwrap_or(usize::max_value());
+    //文件扩展名
+    let mut ext_name = "xxx";
+    if index != usize::max_value() {
+        ext_name = &id[index + 1..];
+    }
+    println!("{ext_name}");
+    let content_type = format!("image/{}", ext_name);
+    println!("{}",content_type);
+    let mut headers = HeaderMap::new();
+    //let content_type = "image/akaling.png".to_string();
+    headers.insert(
+        HeaderName::from_static("content-type"),
+        HeaderValue::from_str(&content_type).unwrap(),
+    );
+    let file_name = savepath(id);
+    (headers, read(&file_name).unwrap())
 }
 
 async fn login(Json(input): Json<ToLogin>, pool: &Pool<Postgres>) -> Json<Logined> {
