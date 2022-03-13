@@ -1,14 +1,15 @@
 use axum::{
-    extract::{ContentLengthLimit, Multipart,Path},
-    http::{StatusCode,header::{
-        HeaderMap,HeaderValue,HeaderName
-    }},
+    extract::{ContentLengthLimit, Multipart, Path},
+    http::{
+        header::{HeaderMap, HeaderName, HeaderValue},
+        StatusCode,
+    },
     response::Html,
     routing::{get, get_service},
     Json, Router,
 };
-use std::fs::read;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
+use std::fs::read;
 use std::{net::SocketAddr, sync::Arc};
 use tower_http::{
     services::ServeDir,
@@ -117,7 +118,7 @@ async fn show_form() -> Html<&'static str> {
         "#,
     )
 }
-async fn img_source() -> Html<&'static str>{
+async fn img_source() -> Html<&'static str> {
     Html(
         r#"
         <!doctype html>
@@ -127,7 +128,7 @@ async fn img_source() -> Html<&'static str>{
                 <img src="/image/akalin.png" />
             </body>
         </html>
-        "#
+        "#,
     )
 }
 async fn accept_form(
@@ -141,15 +142,15 @@ async fn accept_form(
     use std::fs::OpenOptions;
     let time = chrono::offset::Utc::now().to_string();
     let storagepath = base64::encode(time);
-    let savedpath = format!("{}/Service/{}",home(),storagepath);
-    let theresult : Result<(),Box<dyn std::error::Error>> = async {
+    let savedpath = format!("{}/Service/{}", home(), storagepath);
+    let theresult: Result<(), Box<dyn std::error::Error>> = async {
         tokio::fs::create_dir_all(&savedpath).await?;
         let file = OpenOptions::new()
             .create(true)
             .write(true)
             .truncate(true)
-            .open(format!("{}/index.json",savedpath))?;
-        let mut indexjson :Vec<Index> = vec![];
+            .open(format!("{}/index.json", savedpath))?;
+        let mut indexjson: Vec<Index> = vec![];
 
         while let Some(field) = multipart.next_field().await? {
             let name = field.name().unwrap().to_string();
@@ -158,11 +159,11 @@ async fn accept_form(
             let data = field.bytes().await.unwrap();
             //let temp = savepath(file_name.clone());
             //println!("{temp}");
-            indexjson.push(Index { 
+            indexjson.push(Index {
                 filetype: "Image".to_string(),
-                name: file_name.clone()
+                name: file_name.clone(),
             });
-            tokio::fs::write(format!("{}/{}",&savedpath,file_name), &data)
+            tokio::fs::write(format!("{}/{}", &savedpath, file_name), &data)
                 .await
                 .map_err(|err| err.to_string())?;
             println!(
@@ -175,7 +176,8 @@ async fn accept_form(
         }
         serde_json::to_writer(&file, &indexjson)?;
         Ok(())
-    }.await;
+    }
+    .await;
     match theresult {
         Ok(()) => Json(Succeeded {
             succeed: true,
@@ -183,32 +185,25 @@ async fn accept_form(
         }),
         Err(e) => Json(Succeeded {
             succeed: false,
-            error: Some(e.to_string())
-        })
+            error: Some(e.to_string()),
+        }),
     }
 }
 async fn show_json(Path(id): Path<String>) -> Json<Option<Vec<Index>>> {
     //文件扩展名
     //let id = id.replace('$', "/");
     //println!("{id}");
-    let show_json_prew : Result<Vec<Index>,Box<dyn std::error::Error>>= async {
-        let file_path = format!("{}/Service/{id}/index.json",home());
+    let show_json_prew: Result<Vec<Index>, Box<dyn std::error::Error>> = async {
+        let file_path = format!("{}/Service/{id}/index.json", home());
         let file = std::fs::File::open(file_path)?;
         Ok(serde_json::from_reader(file)?)
-    }.await;
+    }
+    .await;
     match show_json_prew {
         Ok(json) => Json(Some(json)),
-        Err(_) => Json(None)
+        Err(_) => Json(None),
     }
 }
-//fn show_json_prew(id: String) -> Result<Vec<Index>,Box<dyn std::error::Error>> {
-//    //文件扩展名
-//    //let id = id.replace('$', "/");
-//    //println!("{id}");
-//    let file_path = format!("{}/Service/{id}/index.json",home());
-//    let file = std::fs::File::open(file_path)?;
-//    Ok(serde_json::from_reader(file)?)
-//}
 async fn show_image(Path(id): Path<String>) -> (HeaderMap, Vec<u8>) {
     //文件扩展名
     let id = id.replace('$', "/");
@@ -221,7 +216,7 @@ async fn show_image(Path(id): Path<String>) -> (HeaderMap, Vec<u8>) {
     }
     println!("{ext_name}");
     let content_type = format!("image/{}", ext_name);
-    println!("{}",content_type);
+    println!("{}", content_type);
     let mut headers = HeaderMap::new();
     //let content_type = "image/akaling.png".to_string();
     headers.insert(
