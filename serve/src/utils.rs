@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use std::error::Error;
+use std::fmt::Display;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
@@ -38,4 +40,20 @@ pub struct Index {
 pub struct Succeeded {
     pub succeed: bool,
     pub error: Option<String>,
+}
+#[derive(Debug)]
+pub struct UploadFailed {
+    pub location: String,
+}
+
+impl Error for UploadFailed {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        None
+    }
+}
+impl Display for UploadFailed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let theerror = format!("location is {}", self.location);
+        write!(f, "{theerror}")
+    }
 }

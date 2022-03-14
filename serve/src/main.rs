@@ -77,6 +77,7 @@ async fn main() {
                 .post(|input: Json<ToLogin>| async move { register(input, &*topool2).await }),
         )
         .route("/image/:id", get(show_image))
+        .route("/txt/:id", get(show_txt))
         .route("/json/:id", get(show_json))
         .route("/viewimage", get(img_source))
         //.route("/preview", get(show_image_uploaded))
@@ -144,35 +145,64 @@ async fn accept_form(
     let storagepath = base64::encode(time);
     let savedpath = format!("{}/Service/{}", home(), storagepath);
     let theresult: Result<(), Box<dyn std::error::Error>> = async {
+        let mut indexjson: Vec<Index> = vec![];
+        let mut file_data: Vec<(String, axum::body::Bytes)> = vec![];
+        while let Some(field) = multipart.next_field().await? {
+            //let name = field.name().unwrap().to_string();
+            let file_name = field.file_name().unwrap().to_string();
+            let content_type = field.content_type().unwrap().to_string();
+            let data = field.bytes().await.unwrap();
+            //let temp = savepath(file_name.clone());
+            //println!("{temp}");
+            match content_type.as_str() {
+                "application/octet-stream" => {
+                    indexjson.push(Index {
+                        filetype: "TXT".to_string(),
+                        name: file_name.clone(),
+                    });
+                }
+                "video/mp4" => {
+                    indexjson.push(Index {
+                        filetype: "Video".to_string(),
+                        name: file_name.clone(),
+                    });
+                }
+                "image/png" | "image/jpeg" => {
+                    indexjson.push(Index {
+                        filetype: "Image".to_string(),
+                        name: file_name.clone(),
+                    });
+                }
+                _ => {
+                    let theerror: Box<dyn std::error::Error> = Box::new(UploadFailed {
+                        location: file_name,
+                    });
+                    return Err(theerror);
+                }
+            }
+            //file_data.push((file_name.clone(),data.clone()));
+            file_data.push((file_name, data));
+            //tokio::fs::write(format!("{}/{}", &savedpath, file_name), &data)
+            //    .await
+            //    .map_err(|err| err.to_string())?;
+            //println!(
+            //    "Length of `{}` (`{}`: `{}`) is {} bytes",
+            //    name,
+            //    file_name,
+            //    content_type,
+            //    data.len()
+            //);
+        }
         tokio::fs::create_dir_all(&savedpath).await?;
         let file = OpenOptions::new()
             .create(true)
             .write(true)
             .truncate(true)
             .open(format!("{}/index.json", savedpath))?;
-        let mut indexjson: Vec<Index> = vec![];
-
-        while let Some(field) = multipart.next_field().await? {
-            let name = field.name().unwrap().to_string();
-            let file_name = field.file_name().unwrap().to_string();
-            let content_type = field.content_type().unwrap().to_string();
-            let data = field.bytes().await.unwrap();
-            //let temp = savepath(file_name.clone());
-            //println!("{temp}");
-            indexjson.push(Index {
-                filetype: "Image".to_string(),
-                name: file_name.clone(),
-            });
-            tokio::fs::write(format!("{}/{}", &savedpath, file_name), &data)
+        for (name, data) in file_data.iter() {
+            tokio::fs::write(format!("{}/{}", &savedpath, name), data)
                 .await
                 .map_err(|err| err.to_string())?;
-            println!(
-                "Length of `{}` (`{}`: `{}`) is {} bytes",
-                name,
-                file_name,
-                content_type,
-                data.len()
-            );
         }
         serde_json::to_writer(&file, &indexjson)?;
         Ok(())
@@ -225,6 +255,13 @@ async fn show_image(Path(id): Path<String>) -> (HeaderMap, Vec<u8>) {
     );
     let file_name = savepath(id);
     (headers, read(&file_name).unwrap())
+}
+async fn show_txt(Path(id): Path<String>) -> String {
+    //文件扩展名
+    let id = id.replace('$', "/");
+    let file_path = format!("{}/Service/{id}", home());
+    std::fs::read_to_string(file_path).unwrap_or_else(|_| "None of this path".to_string())
+    //println!("{id}");
 }
 
 async fn login(Json(input): Json<ToLogin>, pool: &Pool<Postgres>) -> Json<Logined> {
