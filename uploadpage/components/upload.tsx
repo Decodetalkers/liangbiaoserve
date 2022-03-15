@@ -142,7 +142,7 @@ export default function Upload() {
       <button onClick={uploadFile}>UPLOAD</button>
 			<br/>
 			Png:
-      <input type="file" accept=".png" onChange={onChangeImg} />
+      <input type="file" accept="image/png, image/jpeg" onChange={onChangeImg} />
 			<br/>
 			File
       <input type="file" accept=".mp4" onChange={onChangeVideo} />

@@ -16,6 +16,7 @@ pub struct ToLogin {
 pub struct Logined {
     pub logined: bool,
     pub message: Option<Infomation>,
+    pub failed: Option<String>,
 }
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Infomation {
@@ -56,4 +57,8 @@ impl Display for UploadFailed {
         let theerror = format!("location is {}", self.location);
         write!(f, "{theerror}")
     }
+}
+#[derive(sqlx::FromRow, Debug, Serialize, Deserialize)]
+pub struct FoldTable {
+    pub id: String,
 }

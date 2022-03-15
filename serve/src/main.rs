@@ -8,17 +8,24 @@ use axum::{
     routing::{get, get_service},
     Json, Router,
 };
+use hyper::{
+    header::{AUTHORIZATION, CONTENT_TYPE},
+    Method,
+};
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use std::fs::read;
 use std::{net::SocketAddr, sync::Arc};
 use tower_http::{
+    cors::{Any, CorsLayer},
     services::ServeDir,
     trace::{DefaultMakeSpan, TraceLayer},
 };
 mod sqlconnect;
-use sqlconnect::{logininto, registinto};
+use sqlconnect::{get_folds, logininto, registinto};
 mod utils;
 use utils::*;
+
+use crate::sqlconnect::storageinto;
 #[inline]
 fn home() -> String {
     std::env::var("HOME").unwrap()
@@ -42,18 +49,13 @@ async fn main() {
     //  etc.
     let pool = PgPoolOptions::new()
         .max_connections(5)
-        //.connect("postgres://postgres:cht123456789@localhost/students")
         .connect(&students)
         .await
         .unwrap_or_else(|_| panic!("nosuch database"));
     let topool = Arc::new(pool);
     let topool2 = Arc::clone(&topool);
-    //let statestart = State {
-    //    id : "None".to_string(),
-    //};
-    //let state = Arc::new(tokio::sync::Mutex::new(statestart));
-    //let state_change = Arc::clone(&state);
-    // build our application with some routes
+    let topool3 = Arc::clone(&topool);
+    let topool4 = Arc::clone(&topool);
     let app = Router::new()
         .fallback(
             get_service(ServeDir::new("routes/upload").append_index_html_on_directories(true))
@@ -62,10 +64,25 @@ async fn main() {
                         StatusCode::INTERNAL_SERVER_ERROR,
                         format!("Unhandled internal error: {}", error),
                     )
-                })
-                .post(accept_form),
+                }),
         )
-        .route("/ws", get(show_form).post(accept_form))
+        .route(
+            "/ws",
+            get(show_form).post(
+                |input: ContentLengthLimit<
+                    Multipart,
+                    {
+                        250 * 1024 * 1024 /* 250mb */
+                    },
+                >| async move {
+                    let (thepath, output) = accept_form(input).await;
+                    if thepath.is_some() {
+                        storageinto(&*topool4, thepath.unwrap()).await.unwrap();
+                    };
+                    output
+                },
+            ),
+        )
         .route(
             "/login",
             get(|| async {})
@@ -76,23 +93,24 @@ async fn main() {
             get(show_form)
                 .post(|input: Json<ToLogin>| async move { register(input, &*topool2).await }),
         )
+        .route("/folds", get(|| async move { getfolders(&*topool3).await }))
         .route("/image/:id", get(show_image))
         .route("/txt/:id", get(show_txt))
         .route("/json/:id", get(show_json))
         .route("/viewimage", get(img_source))
-        //.route("/preview", get(show_image_uploaded))
-        //.route("/preview2", get(show_image_uploaded)
-        //       .post(|Json(input): Json<State>| async move {
-        //            let mut statepost = state_change.lock().await;
-        //            statepost.id = input.id;
-        //       }))
+        .layer(
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_headers([AUTHORIZATION, CONTENT_TYPE])
+                .allow_methods([Method::GET, Method::POST, Method::POST, Method::DELETE]),
+        )
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),
         );
 
     // run it with hyper
-    let addr = SocketAddr::from(([0, 0, 0, 0], 4000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     tracing::debug!("listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
@@ -139,7 +157,7 @@ async fn accept_form(
             250 * 1024 * 1024 /* 250mb */
         },
     >,
-) -> Json<Succeeded> {
+) -> (Option<String>, Json<Succeeded>) {
     use std::fs::OpenOptions;
     let time = chrono::offset::Utc::now().to_string();
     let storagepath = base64::encode(time);
@@ -180,18 +198,7 @@ async fn accept_form(
                     return Err(theerror);
                 }
             }
-            //file_data.push((file_name.clone(),data.clone()));
             file_data.push((file_name, data));
-            //tokio::fs::write(format!("{}/{}", &savedpath, file_name), &data)
-            //    .await
-            //    .map_err(|err| err.to_string())?;
-            //println!(
-            //    "Length of `{}` (`{}`: `{}`) is {} bytes",
-            //    name,
-            //    file_name,
-            //    content_type,
-            //    data.len()
-            //);
         }
         tokio::fs::create_dir_all(&savedpath).await?;
         let file = OpenOptions::new()
@@ -209,14 +216,20 @@ async fn accept_form(
     }
     .await;
     match theresult {
-        Ok(()) => Json(Succeeded {
-            succeed: true,
-            error: None,
-        }),
-        Err(e) => Json(Succeeded {
-            succeed: false,
-            error: Some(e.to_string()),
-        }),
+        Ok(()) => (
+            Some(storagepath),
+            Json(Succeeded {
+                succeed: true,
+                error: None,
+            }),
+        ),
+        Err(e) => (
+            None,
+            Json(Succeeded {
+                succeed: false,
+                error: Some(e.to_string()),
+            }),
+        ),
     }
 }
 async fn show_json(Path(id): Path<String>) -> Json<Option<Vec<Index>>> {
@@ -244,9 +257,9 @@ async fn show_image(Path(id): Path<String>) -> (HeaderMap, Vec<u8>) {
     if index != usize::max_value() {
         ext_name = &id[index + 1..];
     }
-    println!("{ext_name}");
+    //println!("{ext_name}");
     let content_type = format!("image/{}", ext_name);
-    println!("{}", content_type);
+    //println!("{}", content_type);
     let mut headers = HeaderMap::new();
     //let content_type = "image/akaling.png".to_string();
     headers.insert(
@@ -265,16 +278,36 @@ async fn show_txt(Path(id): Path<String>) -> String {
 }
 
 async fn login(Json(input): Json<ToLogin>, pool: &Pool<Postgres>) -> Json<Logined> {
-    let information = logininto(pool, input).await.unwrap_or(None);
-    Json(Logined {
-        logined: information.is_some(),
-        message: information,
-    })
+    match logininto(pool, input).await {
+        Ok(information) => Json(Logined {
+            logined: true,
+            message: information,
+            failed: None,
+        }),
+        Err(e) => Json(Logined {
+            logined: false,
+            message: None,
+            failed: Some(e.to_string()),
+        }),
+    }
 }
 async fn register(Json(input): Json<ToLogin>, pool: &Pool<Postgres>) -> Json<Logined> {
-    let information = registinto(pool, input).await.unwrap();
-    Json(Logined {
-        logined: information.is_some(),
-        message: information,
-    })
+    match registinto(pool, input).await {
+        Ok(information) => Json(Logined {
+            logined: true,
+            message: information,
+            failed: None,
+        }),
+        Err(e) => Json(Logined {
+            logined: false,
+            message: None,
+            failed: Some(e.to_string()),
+        }),
+    }
+}
+async fn getfolders(pool: &Pool<Postgres>) -> Json<Option<Vec<FoldTable>>> {
+    match get_folds(pool).await {
+        Ok(information) => Json(Some(information)),
+        Err(_) => Json(None),
+    }
 }

@@ -1,9 +1,10 @@
-use crate::utils::{Infomation, ToLogin};
+use crate::utils::{FoldTable, Infomation, ToLogin};
+use anyhow::Result;
 use sqlx::{Pool, Postgres};
-pub async fn logininto(
-    pool: &Pool<Postgres>,
-    tologin: ToLogin,
-) -> Result<Option<Infomation>, sqlx::Error> {
+mod illegaled;
+use illegaled::*;
+pub async fn logininto(pool: &Pool<Postgres>, tologin: ToLogin) -> Result<Option<Infomation>> {
+    tologin.checklegal()?;
     let output = sqlx::query_as::<_, Infomation>(&format!(
         "SELECT name, icon from login 
             where name='{}' AND passward='{}'",
@@ -13,10 +14,8 @@ pub async fn logininto(
     .await?;
     Ok(Some(output))
 }
-pub async fn registinto(
-    pool: &Pool<Postgres>,
-    tologin: ToLogin,
-) -> Result<Option<Infomation>, sqlx::Error> {
+pub async fn registinto(pool: &Pool<Postgres>, tologin: ToLogin) -> Result<Option<Infomation>> {
+    tologin.checklegal()?;
     let output = sqlx::query_as::<_, Infomation>(&format!(
         "SELECT name, icon from login 
             where name='{}' ",
@@ -36,4 +35,20 @@ pub async fn registinto(
     } else {
         Ok(None)
     }
+}
+pub async fn storageinto(pool: &Pool<Postgres>, path: String) -> Result<()> {
+    sqlx::query(&format!("INSERT INTO tablefold (id) VALUES ('{}')", path,))
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+pub async fn get_folds(pool: &Pool<Postgres>) -> Result<Vec<FoldTable>> {
+    let output = sqlx::query_as::<_, FoldTable>(
+        r#"
+        select id from tablefold ORDER BY random() LIMIT 5;
+        "#,
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(output)
 }
