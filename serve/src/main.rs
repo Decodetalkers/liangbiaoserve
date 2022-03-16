@@ -21,11 +21,9 @@ use tower_http::{
     trace::{DefaultMakeSpan, TraceLayer},
 };
 mod sqlconnect;
-use sqlconnect::{get_folds, logininto, registinto};
+use sqlconnect::{get_folds, logininto, registinto, storageinto};
 mod utils;
 use utils::*;
-
-use crate::sqlconnect::storageinto;
 #[inline]
 fn home() -> String {
     std::env::var("HOME").unwrap()

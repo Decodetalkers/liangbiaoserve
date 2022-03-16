@@ -7,7 +7,6 @@ pub trait IsIllegal {
 }
 impl IsIllegal for ToLogin {
     fn checklegal(&self) -> Result<(), StringIllegal> {
-        print!("sss");
         for key in KEY {
             if self.name.contains(key) || self.passward.contains(key) {
                 return Err(StringIllegal {

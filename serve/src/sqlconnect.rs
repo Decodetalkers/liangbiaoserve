@@ -45,7 +45,7 @@ pub async fn storageinto(pool: &Pool<Postgres>, path: String) -> Result<()> {
 pub async fn get_folds(pool: &Pool<Postgres>) -> Result<Vec<FoldTable>> {
     let output = sqlx::query_as::<_, FoldTable>(
         r#"
-        select id from tablefold ORDER BY random() LIMIT 5;
+        select id from tablefold ORDER BY random() LIMIT 8;
         "#,
     )
     .fetch_all(pool)
