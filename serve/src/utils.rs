@@ -2,12 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt::Display;
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Claims {
-    pub sub: String,
-    pub company: String,
-    pub exp: usize,
-}
-#[derive(Debug, Serialize, Deserialize)]
 pub struct ToLogin {
     pub name: String,
     pub passward: String,
