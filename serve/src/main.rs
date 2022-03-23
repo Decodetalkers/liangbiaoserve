@@ -23,14 +23,16 @@ use tower_http::{
 mod sqlconnect;
 use sqlconnect::{get_folds, logininto, registinto, storageinto};
 mod utils;
+use once_cell::sync::Lazy;
 use utils::*;
-#[inline]
-fn home() -> String {
-    std::env::var("HOME").unwrap()
-}
+static HOME: Lazy<String> = Lazy::new(|| std::env::var("HOME").unwrap());
+//#[inline]
+//fn home() -> String {
+//    std::env::var("HOME").unwrap()
+//}
 #[inline]
 fn savepath(file: String) -> String {
-    format!("{}/Service/{}", home(), file)
+    format!("{}/Service/{}", *HOME, file)
 }
 #[tokio::main]
 async fn main() {
@@ -159,7 +161,7 @@ async fn accept_form(
     use std::fs::OpenOptions;
     let time = chrono::offset::Utc::now().to_string();
     let storagepath = base64::encode(time);
-    let savedpath = format!("{}/Service/{}", home(), storagepath);
+    let savedpath = format!("{}/Service/{}", *HOME, storagepath);
     let theresult: Result<(), Box<dyn std::error::Error>> = async {
         let mut indexjson: Vec<Index> = vec![];
         let mut file_data: Vec<(String, axum::body::Bytes)> = vec![];
@@ -235,7 +237,7 @@ async fn show_json(Path(id): Path<String>) -> Json<Option<Vec<Index>>> {
     //let id = id.replace('$', "/");
     //println!("{id}");
     let show_json_prew: Result<Vec<Index>, Box<dyn std::error::Error>> = async {
-        let file_path = format!("{}/Service/{id}/index.json", home());
+        let file_path = format!("{}/Service/{id}/index.json", *HOME);
         let file = std::fs::File::open(file_path)?;
         Ok(serde_json::from_reader(file)?)
     }
@@ -270,7 +272,7 @@ async fn show_image(Path(id): Path<String>) -> (HeaderMap, Vec<u8>) {
 async fn show_txt(Path(id): Path<String>) -> String {
     //文件扩展名
     let id = id.replace('$', "/");
-    let file_path = format!("{}/Service/{id}", home());
+    let file_path = format!("{}/Service/{id}", *HOME);
     std::fs::read_to_string(file_path).unwrap_or_else(|_| "None of this path".to_string())
     //println!("{id}");
 }
