@@ -93,6 +93,7 @@ async fn main() {
             get(show_form)
                 .post(|input: Json<ToLogin>| async move { register(input, &*topool2).await }),
         )
+        .route("/receive", get(|| async {}).post(receivescore))
         .route("/folds", get(|| async move { getfolders(&*topool3).await }))
         .route("/image/:id", get(show_image))
         .route("/txt/:id", get(show_txt))
@@ -310,4 +311,7 @@ async fn getfolders(pool: &Pool<Postgres>) -> Json<Option<Vec<FoldTable>>> {
         Ok(information) => Json(Some(information)),
         Err(_) => Json(None),
     }
+}
+async fn receivescore(Json(input): Json<Score>) {
+    println!("{:?}", input);
 }

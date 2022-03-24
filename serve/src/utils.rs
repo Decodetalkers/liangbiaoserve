@@ -40,7 +40,12 @@ pub struct Succeeded {
 pub struct UploadFailed {
     pub location: String,
 }
-
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Score {
+    pub id: String,
+    pub score: i32,
+    pub duration: Vec<i32>,
+}
 impl Error for UploadFailed {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         None
