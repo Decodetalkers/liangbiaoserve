@@ -1,4 +1,4 @@
-use crate::utils::{FoldTable, Infomation, ToLogin};
+use crate::utils::{FoldTable, Infomation, Score, ToLogin};
 use anyhow::Result;
 use sqlx::{Pool, Postgres};
 mod illegaled;
@@ -51,4 +51,40 @@ pub async fn get_folds(pool: &Pool<Postgres>) -> Result<Vec<FoldTable>> {
     .fetch_all(pool)
     .await?;
     Ok(output)
+}
+pub async fn storage_score(pool: &Pool<Postgres>, score: Score) -> Result<()> {
+    let output = sqlx::query_as::<_, Score>(
+        r#"
+        SELECT * from score 
+            where id = $1 AND name = $2
+        "#,
+    )
+    .bind(score.id.clone())
+    .bind(score.name.clone())
+    .fetch_one(pool)
+    .await;
+    if output.is_err() {
+        sqlx::query(r#"INSERT INTO score (id, name,duration,score) VALUES ($1, $2,$3,$4);"#)
+            .bind(score.id)
+            .bind(score.name)
+            .bind(score.duration)
+            .bind(score.score)
+            .execute(pool)
+            .await?;
+    } else {
+        sqlx::query(
+            r#"
+            UPDATE score 
+            set duration = $1, score = $2
+            where id = $3 and name = $4
+            "#,
+        )
+        .bind(score.duration)
+        .bind(score.score)
+        .bind(score.id)
+        .bind(score.name)
+        .execute(pool)
+        .await?;
+    }
+    Ok(())
 }

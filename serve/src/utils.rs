@@ -40,9 +40,10 @@ pub struct Succeeded {
 pub struct UploadFailed {
     pub location: String,
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Score {
     pub id: String,
+    pub name: String,
     pub score: i32,
     pub duration: Vec<i32>,
 }

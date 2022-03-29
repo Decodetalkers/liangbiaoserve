@@ -21,7 +21,7 @@ use tower_http::{
     trace::{DefaultMakeSpan, TraceLayer},
 };
 mod sqlconnect;
-use sqlconnect::{get_folds, logininto, registinto, storageinto};
+use sqlconnect::{get_folds, logininto, registinto, storage_score, storageinto};
 mod utils;
 use once_cell::sync::Lazy;
 use utils::*;
@@ -56,6 +56,7 @@ async fn main() {
     let topool2 = Arc::clone(&topool);
     let topool3 = Arc::clone(&topool);
     let topool4 = Arc::clone(&topool);
+    let topool5 = Arc::clone(&topool);
     let app = Router::new()
         .fallback(
             get_service(ServeDir::new("routes/upload").append_index_html_on_directories(true))
@@ -93,7 +94,11 @@ async fn main() {
             get(show_form)
                 .post(|input: Json<ToLogin>| async move { register(input, &*topool2).await }),
         )
-        .route("/receive", get(|| async {}).post(receivescore))
+        .route(
+            "/receive",
+            get(|| async {})
+                .post(|input: Json<Score>| async move { receivescore(input, &*topool5).await }),
+        )
         .route("/folds", get(|| async move { getfolders(&*topool3).await }))
         .route("/image/:id", get(show_image))
         .route("/txt/:id", get(show_txt))
@@ -312,6 +317,6 @@ async fn getfolders(pool: &Pool<Postgres>) -> Json<Option<Vec<FoldTable>>> {
         Err(_) => Json(None),
     }
 }
-async fn receivescore(Json(input): Json<Score>) {
-    println!("{:?}", input);
+async fn receivescore(Json(input): Json<Score>, pool: &Pool<Postgres>) {
+    storage_score(pool, input).await.unwrap();
 }
