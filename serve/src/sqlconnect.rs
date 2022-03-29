@@ -88,3 +88,13 @@ pub async fn storage_score(pool: &Pool<Postgres>, score: Score) -> Result<()> {
     }
     Ok(())
 }
+pub async fn get_history(pool: &Pool<Postgres>, name: String) -> Result<Vec<Score>> {
+    Ok(sqlx::query_as::<_, Score>(
+        r#"
+        SELECT * from score where name = $1
+        "#,
+    )
+    .bind(name)
+    .fetch_all(pool)
+    .await?)
+}
