@@ -111,15 +111,16 @@ async fn main() {
         .route("/json/:id", get(show_json))
         .route("/viewimage", get(img_source))
         .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::default().include_headers(true)),
+        )
+        .layer(
             CorsLayer::new()
                 .allow_origin(Any)
                 .allow_headers([AUTHORIZATION, CONTENT_TYPE])
                 .allow_methods([Method::GET, Method::POST, Method::POST, Method::DELETE]),
-        )
-        .layer(
-            TraceLayer::new_for_http()
-                .make_span_with(DefaultMakeSpan::default().include_headers(true)),
         );
+
 
     // run it with hyper
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));

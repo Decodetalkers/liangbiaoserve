@@ -11,5 +11,6 @@
     "jsx": "react"
   },
   "lint": {},
+  "importMap": "import_map.json",
   "format": {}
 }
