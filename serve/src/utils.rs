@@ -32,6 +32,11 @@ pub struct Index {
     pub name: String,
 }
 #[derive(Debug, Serialize, Deserialize)]
+pub struct FileMenu {
+    pub tabletype: String,
+    pub menu: Vec<Index>,
+}
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Succeeded {
     pub succeed: bool,
     pub error: Option<String>,
@@ -42,10 +47,11 @@ pub struct UploadFailed {
 }
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Score {
-    pub id: String,
-    pub name: String,
-    pub score: i32,
-    pub duration: Vec<i32>,
+    pub(super) tabletype: String,
+    pub(super) id: String,
+    pub(super) name: String,
+    pub(super) score: f64,
+    pub(super) duration: Vec<i32>,
 }
 impl Error for UploadFailed {
     fn source(&self) -> Option<&(dyn Error + 'static)> {

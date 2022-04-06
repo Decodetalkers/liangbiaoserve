@@ -46,7 +46,6 @@ async fn main() {
     // Create a connection pool
     //  for MySQL, use MySqlPoolOptions::new()
     //  for SQLite, use SqlitePoolOptions::new()
-    //  etc.
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(&students)
@@ -58,7 +57,10 @@ async fn main() {
     let topool4 = Arc::clone(&topool);
     let topool5 = Arc::clone(&topool);
     let topool6 = Arc::clone(&topool);
+    //let topooltest = Arc::clone(&topool);
     let app = Router::new()
+        //.route("/table", uploadpage)
+        //.route("/", tablepage)
         .fallback(
             get_service(ServeDir::new("routes/upload").append_index_html_on_directories(true))
                 .handle_error(|error: std::io::Error| async move {
@@ -69,7 +71,7 @@ async fn main() {
                 }),
         )
         .route(
-            "/ws",
+            "/upload",
             get(show_form).post(
                 |input: ContentLengthLimit<
                     Multipart,
@@ -121,7 +123,6 @@ async fn main() {
                 .allow_methods([Method::GET, Method::POST, Method::POST, Method::DELETE]),
         );
 
-
     // run it with hyper
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     tracing::debug!("listening on {}", addr);
@@ -171,9 +172,37 @@ async fn accept_form(
         },
     >,
 ) -> (Option<String>, Json<Succeeded>) {
+    //println!("succeed");
     use std::fs::OpenOptions;
     let time = chrono::offset::Utc::now().to_string();
     let storagepath = base64::encode(time);
+    let name = match multipart.next_field().await.unwrap() {
+        Some(test) => {
+            let head = test.content_type().unwrap().to_string();
+            let output = String::from_utf8(test.bytes().await.unwrap().to_vec()).unwrap();
+            if &head == "text/plain" {
+                output
+            } else {
+                return (
+                    None,
+                    Json(Succeeded {
+                        succeed: false,
+                        error: Some("Unkown type".to_string()),
+                    }),
+                );
+            }
+        }
+        None => {
+            return (
+                None,
+                Json(Succeeded {
+                    succeed: false,
+                    error: Some("Unkown type".to_string()),
+                }),
+            );
+        }
+    };
+
     let savedpath = format!("{}/Service/{}", *HOME, storagepath);
     let theresult: Result<(), Box<dyn std::error::Error>> = async {
         let mut indexjson: Vec<Index> = vec![];
@@ -213,6 +242,10 @@ async fn accept_form(
             }
             file_data.push((file_name, data));
         }
+        let menu = FileMenu {
+            tabletype: name,
+            menu: indexjson,
+        };
         tokio::fs::create_dir_all(&savedpath).await?;
         let file = OpenOptions::new()
             .create(true)
@@ -224,7 +257,7 @@ async fn accept_form(
                 .await
                 .map_err(|err| err.to_string())?;
         }
-        serde_json::to_writer(&file, &indexjson)?;
+        serde_json::to_writer(&file, &menu)?;
         Ok(())
     }
     .await;
@@ -245,11 +278,11 @@ async fn accept_form(
         ),
     }
 }
-async fn show_json(Path(id): Path<String>) -> Json<Option<Vec<Index>>> {
+async fn show_json(Path(id): Path<String>) -> Json<Option<FileMenu>> {
     //文件扩展名
     //let id = id.replace('$', "/");
     //println!("{id}");
-    let show_json_prew: Result<Vec<Index>, Box<dyn std::error::Error>> = async {
+    let show_json_prew: Result<FileMenu, Box<dyn std::error::Error>> = async {
         let file_path = format!("{}/Service/{id}/index.json", *HOME);
         let file = std::fs::File::open(file_path)?;
         Ok(serde_json::from_reader(file)?)

@@ -64,13 +64,16 @@ pub async fn storage_score(pool: &Pool<Postgres>, score: Score) -> Result<()> {
     .fetch_one(pool)
     .await;
     if output.is_err() {
-        sqlx::query(r#"INSERT INTO score (id, name,duration,score) VALUES ($1, $2,$3,$4);"#)
-            .bind(score.id)
-            .bind(score.name)
-            .bind(score.duration)
-            .bind(score.score)
-            .execute(pool)
-            .await?;
+        sqlx::query(
+            r#"INSERT INTO score (id, name,duration,score,tabletype) VALUES ($1, $2,$3,$4,$5);"#,
+        )
+        .bind(score.id)
+        .bind(score.name)
+        .bind(score.duration)
+        .bind(score.score)
+        .bind(score.tabletype)
+        .execute(pool)
+        .await?;
     } else {
         sqlx::query(
             r#"

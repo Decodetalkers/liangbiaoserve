@@ -23,9 +23,13 @@ enum type {
 export default function Upload() {
   const [state, setState] = useState<Array<Layout>>([]);
   const [value, setvalue] = useState<string>("");
+	const [selected,setselected] = useState<string>("a")
 	const handleChange = (event:React.ChangeEvent<HTMLTextAreaElement>) => {
     setvalue(event.target.value);
   };
+	const handleselectedchange = (event:React.ChangeEvent<HTMLSelectElement>) => {
+		setselected(event.target.value)
+	}
   const onChangeImg = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file: FileList | null = e.target.files; // 取得選中檔案們的一個檔案
     if (file != null) {
@@ -47,34 +51,38 @@ export default function Upload() {
 	}
 
   const uploadFile = () => {
-    const fromData = new FormData();
+    const formData = new FormData();
+		formData.append("tabletype", new Blob([selected],{type:"text/plain"}))
     state.map((e,index) => {
       if (e.img != null) {
 				const name = e.img!.file.name;
 				const ind = name.lastIndexOf(".")
 				const ext = name.substring(ind + 1)
 				const finalname = `${index}.${ext}`
-        fromData.append("files", e.img!.file, finalname);
+        formData.append("files", e.img!.file, finalname);
       }
 			else if(e.video !=null ) {
 				const name = e.video!.file.name;
 				const ind = name.lastIndexOf(".")
 				const ext = name.substring(ind + 1)
 				const finalname = `${index}.${ext}`
-        fromData.append("files", e.video!.file, finalname);
+        formData.append("files", e.video!.file, finalname);
       }
 			else {
 				const name = e.txt!.file.name;
 				const ind = name.lastIndexOf(".")
 				const ext = name.substring(ind + 1)
 				const finalname = `${index}.${ext}`
-        fromData.append("files", e.txt!.file, finalname);
+        formData.append("files", e.txt!.file, finalname);
 			}
     });
-    fetch("/ws", {
+	
+    fetch("/upload", {
       method: "post",
-      body: fromData,
-    }).catch((error) => (error));
+      body: formData,
+    }).catch((error) => {
+			console.log(`this is what happened: ${error}`)
+		});
   };
   const Add = (url: string, file: File, thetype: type) => {
     const temp: Array<Layout> = [...state];
@@ -139,6 +147,17 @@ export default function Upload() {
   return (
     <>
 			{list}
+			
+		<select 
+			value={selected}
+			onChange={handleselectedchange}
+		>
+		    <option value="a">A</option>
+		    <option value="b">B</option>
+		    <option value="c">C</option>
+		    <option value="d">D</option>
+		</select>
+
       <button onClick={uploadFile}>UPLOAD</button>
 			<br/>
 			Png:
