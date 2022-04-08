@@ -4,7 +4,7 @@ use axum::{
         header::{HeaderMap, HeaderName, HeaderValue},
         StatusCode,
     },
-    response::Html,
+    //response::Html,
     routing::{get, get_service},
     Json, Router,
 };
@@ -25,6 +25,8 @@ use sqlconnect::{get_folds, get_history, logininto, registinto, storage_score, s
 mod utils;
 use once_cell::sync::Lazy;
 use utils::*;
+
+use crate::sqlconnect::{get_all_history, adminlogininto};
 static HOME: Lazy<String> = Lazy::new(|| std::env::var("HOME").unwrap());
 //#[inline]
 //fn home() -> String {
@@ -52,11 +54,13 @@ async fn main() {
         .await
         .unwrap_or_else(|_| panic!("nosuch database"));
     let topool = Arc::new(pool);
+    let topool1 = Arc::clone(&topool);
     let topool2 = Arc::clone(&topool);
     let topool3 = Arc::clone(&topool);
     let topool4 = Arc::clone(&topool);
     let topool5 = Arc::clone(&topool);
     let topool6 = Arc::clone(&topool);
+    let topool7 = Arc::clone(&topool);
     //let topooltest = Arc::clone(&topool);
     let app = Router::new()
         //.route("/table", uploadpage)
@@ -72,7 +76,7 @@ async fn main() {
         )
         .route(
             "/upload",
-            get(show_form).post(
+            get(|| async {}).post(
                 |input: ContentLengthLimit<
                     Multipart,
                     {
@@ -93,8 +97,13 @@ async fn main() {
                 .post(|input: Json<ToLogin>| async move { login(input, &*topool).await }),
         )
         .route(
+            "/adminlogin",
+            get(|| async {})
+                .post(|input: Json<ToLogin>| async move { adminlogin(input, &*topool1).await }),
+        )
+        .route(
             "/register",
-            get(show_form)
+            get(|| async {})
                 .post(|input: Json<ToLogin>| async move { register(input, &*topool2).await }),
         )
         .route(
@@ -107,11 +116,12 @@ async fn main() {
             get(|| async {})
                 .post(|input: String| async move { posthistory(input, &*topool6).await }),
         )
+        .route("/allhistory", get(|| async move { Json(get_all_history(&*&topool7).await.unwrap())}))
         .route("/folds", get(|| async move { getfolders(&*topool3).await }))
         .route("/image/:id", get(show_image))
         .route("/txt/:id", get(show_txt))
         .route("/json/:id", get(show_json))
-        .route("/viewimage", get(img_source))
+        //.route("/viewimage", get(img_source))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::default().include_headers(true)),
@@ -120,7 +130,7 @@ async fn main() {
             CorsLayer::new()
                 .allow_origin(Any)
                 .allow_headers([AUTHORIZATION, CONTENT_TYPE])
-                .allow_methods([Method::GET, Method::POST, Method::POST, Method::DELETE]),
+                .allow_methods([Method::GET, Method::POST, Method::DELETE]),
         );
 
     // run it with hyper
@@ -131,39 +141,39 @@ async fn main() {
         .await
         .unwrap();
 }
-async fn show_form() -> Html<&'static str> {
-    Html(
-        r#"
-        <!doctype html>
-        <html>
-            <head></head>
-            <body>
-                <form action="/ws" method="post" enctype="multipart/form-data">
-                    <label>
-                        Upload file:
-                        <input type="file" name="file" multiple>
-                    </label>
-
-                    <input type="submit" value="Upload files">
-                </form>
-            </body>
-        </html>
-        "#,
-    )
-}
-async fn img_source() -> Html<&'static str> {
-    Html(
-        r#"
-        <!doctype html>
-        <html>
-            <head></head>
-            <body>
-                <img src="/image/akalin.png" />
-            </body>
-        </html>
-        "#,
-    )
-}
+//async fn show_form() -> Html<&'static str> {
+//    Html(
+//        r#"
+//        <!doctype html>
+//        <html>
+//            <head></head>
+//            <body>
+//                <form action="/ws" method="post" enctype="multipart/form-data">
+//                    <label>
+//                        Upload file:
+//                        <input type="file" name="file" multiple>
+//                    </label>
+//
+//                    <input type="submit" value="Upload files">
+//                </form>
+//            </body>
+//        </html>
+//        "#,
+//    )
+//}
+//async fn img_source() -> Html<&'static str> {
+//    Html(
+//        r#"
+//        <!doctype html>
+//        <html>
+//            <head></head>
+//            <body>
+//                <img src="/image/akalin.png" />
+//            </body>
+//        </html>
+//        "#,
+//    )
+//}
 async fn accept_form(
     ContentLengthLimit(mut multipart): ContentLengthLimit<
         Multipart,
@@ -322,7 +332,20 @@ async fn show_txt(Path(id): Path<String>) -> String {
     std::fs::read_to_string(file_path).unwrap_or_else(|_| "None of this path".to_string())
     //println!("{id}");
 }
-
+async fn adminlogin(Json(input): Json<ToLogin>, pool: &Pool<Postgres>) -> Json<Logined> {
+    match adminlogininto(pool, input).await {
+        Ok(information) => Json(Logined {
+            logined: true,
+            message: information,
+            failed: None,
+        }),
+        Err(e) => Json(Logined {
+            logined: false,
+            message: None,
+            failed: Some(e.to_string()),
+        }),
+    }
+}
 async fn login(Json(input): Json<ToLogin>, pool: &Pool<Postgres>) -> Json<Logined> {
     match logininto(pool, input).await {
         Ok(information) => Json(Logined {

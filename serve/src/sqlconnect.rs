@@ -14,6 +14,17 @@ pub async fn logininto(pool: &Pool<Postgres>, tologin: ToLogin) -> Result<Option
     .await?;
     Ok(Some(output))
 }
+pub async fn adminlogininto(pool: &Pool<Postgres>, tologin: ToLogin) -> Result<Option<Infomation>> {
+    tologin.checklegal()?;
+    let output = sqlx::query_as::<_, Infomation>(&format!(
+        "SELECT name, icon from adminlogin 
+            where name='{}' AND passward='{}'",
+        tologin.name, tologin.passward
+    ))
+    .fetch_one(pool)
+    .await?;
+    Ok(Some(output))
+}
 pub async fn registinto(pool: &Pool<Postgres>, tologin: ToLogin) -> Result<Option<Infomation>> {
     tologin.checklegal()?;
     let output = sqlx::query_as::<_, Infomation>(&format!(
@@ -98,6 +109,15 @@ pub async fn get_history(pool: &Pool<Postgres>, name: String) -> Result<Vec<Scor
         "#,
     )
     .bind(name)
+    .fetch_all(pool)
+    .await?)
+}
+pub async fn get_all_history(pool: &Pool<Postgres>) -> Result<Vec<Score>> {
+    Ok(sqlx::query_as::<_, Score>(
+        r#"
+        SELECT * from score
+        "#,
+    )
     .fetch_all(pool)
     .await?)
 }
