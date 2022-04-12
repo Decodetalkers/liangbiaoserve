@@ -3,10 +3,14 @@ use axum::{
     http::{
         header::{HeaderMap, HeaderName, HeaderValue},
         StatusCode,
+        //    Request,
     },
     //response::Html,
     routing::{get, get_service},
-    Json, Router,
+    Json,
+    Router,
+    //response::IntoResponse,
+    //middleware::{self,Next},
 };
 use hyper::{
     header::{AUTHORIZATION, CONTENT_TYPE},
@@ -26,7 +30,7 @@ mod utils;
 use once_cell::sync::Lazy;
 use utils::*;
 
-use crate::sqlconnect::{get_all_history, adminlogininto};
+use crate::sqlconnect::{adminlogininto, get_all_history};
 static HOME: Lazy<String> = Lazy::new(|| std::env::var("HOME").unwrap());
 //#[inline]
 //fn home() -> String {
@@ -83,7 +87,7 @@ async fn main() {
                         250 * 1024 * 1024 /* 250mb */
                     },
                 >| async move {
-                    let (thepath, output) = accept_form(input).await;
+                    let (thepath, output) = accept_form(&*&topool4, input).await;
                     if thepath.is_some() {
                         storageinto(&*topool4, thepath.unwrap()).await.unwrap();
                     };
@@ -91,6 +95,7 @@ async fn main() {
                 },
             ),
         )
+        //.route_layer(middleware::from_fn(auth))
         .route(
             "/login",
             get(|| async {})
@@ -116,7 +121,10 @@ async fn main() {
             get(|| async {})
                 .post(|input: String| async move { posthistory(input, &*topool6).await }),
         )
-        .route("/allhistory", get(|| async move { Json(get_all_history(&*&topool7).await.unwrap())}))
+        .route(
+            "/allhistory",
+            get(|| async move { Json(get_all_history(&*&topool7).await.unwrap()) }),
+        )
         .route("/folds", get(|| async move { getfolders(&*topool3).await }))
         .route("/image/:id", get(show_image))
         .route("/txt/:id", get(show_txt))
@@ -141,40 +149,23 @@ async fn main() {
         .await
         .unwrap();
 }
-//async fn show_form() -> Html<&'static str> {
-//    Html(
-//        r#"
-//        <!doctype html>
-//        <html>
-//            <head></head>
-//            <body>
-//                <form action="/ws" method="post" enctype="multipart/form-data">
-//                    <label>
-//                        Upload file:
-//                        <input type="file" name="file" multiple>
-//                    </label>
+//async fn auth<B>(req: Request<B>, next: Next<B>) -> impl IntoResponse {
+//    println!("hello");
+//    println!("{:?},{:?}",req.method(),req.headers());
+//    let auth_header = req.headers()
+//        .get(axum::http::header::AUTHORIZATION)
+//        .and_then(|header| header.to_str().ok());
 //
-//                    <input type="submit" value="Upload files">
-//                </form>
-//            </body>
-//        </html>
-//        "#,
-//    )
+//    match auth_header {
+//        Some(_auth_header) => {
+//            Ok(next.run(req).await)
+//        }
+//        _ => Err(StatusCode::UNAUTHORIZED),
+//    }
 //}
-//async fn img_source() -> Html<&'static str> {
-//    Html(
-//        r#"
-//        <!doctype html>
-//        <html>
-//            <head></head>
-//            <body>
-//                <img src="/image/akalin.png" />
-//            </body>
-//        </html>
-//        "#,
-//    )
-//}
+
 async fn accept_form(
+    pool: &Pool<Postgres>,
     ContentLengthLimit(mut multipart): ContentLengthLimit<
         Multipart,
         {
@@ -186,6 +177,32 @@ async fn accept_form(
     use std::fs::OpenOptions;
     let time = chrono::offset::Utc::now().to_string();
     let storagepath = base64::encode(time);
+    if let Some(test) = multipart.next_field().await.unwrap() {
+        let head = test.content_type().unwrap().to_string();
+        if &head == "application/json" {
+            //let output = String::from_utf8(test.bytes().await.unwrap().to_vec()).unwrap();
+            let alogin: ToLogin = serde_json::from_slice(&test.bytes().await.unwrap()).unwrap();
+            println!("{},{}", alogin.name, alogin.passward);
+            if adminlogininto(pool, alogin).await.is_err() {
+                return (
+                    None,
+                    Json(Succeeded {
+                        succeed: false,
+                        error: Some("Cannot login".to_string()),
+                    }),
+                );
+            }
+        } else {
+            return (
+                None,
+                Json(Succeeded {
+                    succeed: false,
+                    error: Some("Please login first".to_string()),
+                }),
+            );
+        }
+        //println!("{output}");
+    }
     let name = match multipart.next_field().await.unwrap() {
         Some(test) => {
             let head = test.content_type().unwrap().to_string();
