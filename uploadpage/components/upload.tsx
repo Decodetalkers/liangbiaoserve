@@ -26,6 +26,7 @@ export default function Upload({ login }: { login: ToLogin }) {
   const [state, setState] = useState<Array<Layout>>([]);
   const [value, setvalue] = useState<string>("");
   const [selected, setselected] = useState<string>("a");
+  const [hasfile, sethasfile] = useState(true);
   const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     setvalue(event.target.value);
   };
@@ -60,6 +61,12 @@ export default function Upload({ login }: { login: ToLogin }) {
     //	name: "admin",
     //	passward: "cht123456789"
     //};
+    if (state.length == 0) {
+      sethasfile(false);
+      return;
+    } else {
+      sethasfile(true);
+    }
     formData.append(
       "login",
       new Blob([JSON.stringify(login)], {
@@ -159,6 +166,7 @@ export default function Upload({ login }: { login: ToLogin }) {
   });
   return (
     <>
+      {!hasfile && <p>you have not post a file</p>}
       {list}
 
       <select
@@ -180,7 +188,7 @@ export default function Upload({ login }: { login: ToLogin }) {
         onChange={onChangeImg}
       />
       <br />
-      File
+      Video
       <input type="file" accept=".mp4" onChange={onChangeVideo} />
       <br />
       <textarea

@@ -7,11 +7,15 @@ export default function Home() {
   const [logined, trylogin] = LoginMessage();
   const [name, setname] = useState("");
   const [passward, setpassward] = useState("");
-  const updatename = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const [ispasswardshow, setpasswardshow] = useState(false);
+  const updatename = (event: React.ChangeEvent<HTMLInputElement>) => {
     setname(event.target.value);
   };
-  const updatepassward = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const updatepassward = (event: React.ChangeEvent<HTMLInputElement>) => {
     setpassward(event.target.value);
+  };
+  const ChangeShow = () => {
+    setpasswardshow(!ispasswardshow);
   };
   const GetLogin = () => {
     trylogin({
@@ -23,26 +27,46 @@ export default function Home() {
     <div className="page">
       <head>
         <title>量表管理平臺</title>
+        <link rel="stylesheet" href="../style/index.css" />
       </head>
       {logined == null && (
         <>
-          <textarea
-            id="noter-text-area"
-            name="textarea"
+          <span className="login100-form-title p-b-26">
+            Welcome
+            <br />
+            <br />
+          </span>
+          <input
+            className="input100"
+            id="name-area"
+            name="namearea"
             value={name}
             onChange={updatename}
           />
           <br />
-          <textarea
-            id="noter-text-area"
-            name="textarea"
+          <input
+            className="inputpassward"
+            type={ispasswardshow ? "text" : "password"}
+            id="passward-area"
+            name="passwardarea"
+            placeholder="Passward"
             value={passward}
             onChange={updatepassward}
           />
-          <button onClick={GetLogin}>Login</button>
+          <button
+            className="password-icon"
+            onClick={ChangeShow}
+          >
+            View
+          </button>
+          <br />
+          <br />
+          <br />
+          <button className="login100-form-btn" onClick={GetLogin}>
+            Login
+          </button>
         </>
       )}
-      <br />
       {logined != null && <Uploader login={logined as ToLogin} />}
     </div>
   );
