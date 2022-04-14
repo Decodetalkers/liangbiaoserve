@@ -199,11 +199,17 @@ export default function Upload({ login }: { login: ToLogin }) {
           <option value="d">D</option>
         </select>
       </div>
-			{!hasfile && <p style={{
-					marginTop: 60,
-					position : "fixed",
-					top: 0,
-			}}>you have not post a file</p>}
+      {!hasfile && (
+        <p
+          style={{
+            marginTop: 60,
+            position: "fixed",
+            top: 0,
+          }}
+        >
+          you have not post a file
+        </p>
+      )}
       <div className="preview">
         {list}
       </div>
