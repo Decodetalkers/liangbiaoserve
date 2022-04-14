@@ -168,18 +168,20 @@ export default function Upload({ login }: { login: ToLogin }) {
     <>
       {!hasfile && <p>you have not post a file</p>}
       {list}
+			<div className="navbar"> 
+				<a> {login.name} </a>
+				<select
+      	  value={selected}
+      	  onChange={handleselectedchange}
+      	>
+      	  <option value="a">A</option>
+      	  <option value="b">B</option>
+      	  <option value="c">C</option>
+      	  <option value="d">D</option>
+      	</select>
 
-      <select
-        value={selected}
-        onChange={handleselectedchange}
-      >
-        <option value="a">A</option>
-        <option value="b">B</option>
-        <option value="c">C</option>
-        <option value="d">D</option>
-      </select>
+			</div>
 
-      <button onClick={uploadFile}>UPLOAD</button>
       <br />
       Png:
       <input
@@ -198,7 +200,9 @@ export default function Upload({ login }: { login: ToLogin }) {
         onChange={handleChange}
       />
       <br />
+
       <button onClick={onChangeTxt}>UploadTxt</button>
+			<button className="postbtn" onClick={uploadFile}>UPLOAD</button>
     </>
   );
 }

@@ -27,15 +27,17 @@ export default function Home() {
     <div className="page">
       <head>
         <title>量表管理平臺</title>
+				<meta name="viewport" content="width=device-width, initial-scale=1"/>
         <link rel="stylesheet" href="../style/index.css" />
       </head>
       {logined == null && (
-        <>
+        <div className="login">
           <span className="login100-form-title p-b-26">
             Welcome
             <br />
             <br />
           </span>
+					<br/>
           <input
             className="input100"
             id="name-area"
@@ -65,7 +67,7 @@ export default function Home() {
           <button className="login100-form-btn" onClick={GetLogin}>
             Login
           </button>
-        </>
+        </div>
       )}
       {logined != null && <Uploader login={logined as ToLogin} />}
     </div>
