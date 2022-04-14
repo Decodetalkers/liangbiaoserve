@@ -27,6 +27,8 @@ export default function Upload({ login }: { login: ToLogin }) {
   const [value, setvalue] = useState<string>("");
   const [selected, setselected] = useState<string>("a");
   const [hasfile, sethasfile] = useState(true);
+  const [postfile, selectpostfile] = useState(0);
+  const posttypes = ["PICTURE", "VIDEO", "TEXT"];
   const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     setvalue(event.target.value);
   };
@@ -161,48 +163,80 @@ export default function Upload({ login }: { login: ToLogin }) {
         </video>,
       );
     } else {
-      list.push(<p>{item.txt?.source}</p>);
+      list.push(<p key={index}>{item.txt?.source}</p>);
+    }
+  });
+  const selectedpost: Array<JSX.Element> = [];
+  posttypes.map((item, index) => {
+    if (postfile == index) {
+      selectedpost.push(
+        <a style={{ background: "gray" }} key={index}>{item}</a>,
+      );
+    } else {
+      selectedpost.push(
+        <a
+          key={index + 11}
+          onClick={() => {
+            selectpostfile(index);
+          }}
+        >
+          {item}
+        </a>,
+      );
     }
   });
   return (
     <>
       {!hasfile && <p>you have not post a file</p>}
-      {list}
-			<div className="navbar"> 
-				<a> {login.name} </a>
-				<select
-      	  value={selected}
-      	  onChange={handleselectedchange}
-      	>
-      	  <option value="a">A</option>
-      	  <option value="b">B</option>
-      	  <option value="c">C</option>
-      	  <option value="d">D</option>
-      	</select>
 
-			</div>
-
-      <br />
-      Png:
-      <input
-        type="file"
-        accept="image/png, image/jpeg"
-        onChange={onChangeImg}
-      />
-      <br />
-      Video
-      <input type="file" accept=".mp4" onChange={onChangeVideo} />
-      <br />
-      <textarea
-        id="noter-text-area"
-        name="textarea"
-        value={value}
-        onChange={handleChange}
-      />
-      <br />
-
-      <button onClick={onChangeTxt}>UploadTxt</button>
-			<button className="postbtn" onClick={uploadFile}>UPLOAD</button>
+      <div className="navbar">
+        <a>{login.name}</a>
+        <select
+          value={selected}
+          onChange={handleselectedchange}
+        >
+          <option value="a">A</option>
+          <option value="b">B</option>
+          <option value="c">C</option>
+          <option value="d">D</option>
+        </select>
+      </div>
+      <div className="preview">
+        {list}
+      </div>
+      <div className="select-item">
+        <div className="switchcase">
+          {selectedpost}
+        </div>
+        {postfile == 0 && (
+          <div className="forupload">
+            Png:
+            <input
+              type="file"
+              accept="image/png, image/jpeg"
+              onChange={onChangeImg}
+            />
+          </div>
+        )}
+        {postfile == 1 && (
+          <div className="forupload">
+            Video
+            <input type="file" accept=".mp4" onChange={onChangeVideo} />
+          </div>
+        )}
+        {postfile == 2 && (
+          <div className="forupload">
+            <textarea
+              id="noter-text-area"
+              name="textarea"
+              value={value}
+              onChange={handleChange}
+            />
+            <button onClick={onChangeTxt}>UploadTxt</button>
+          </div>
+        )}
+      </div>
+      <button className="postbtn" onClick={uploadFile}>UPLOAD</button>
     </>
   );
 }

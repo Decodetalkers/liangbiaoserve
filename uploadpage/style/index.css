@@ -1,5 +1,7 @@
 @import url('./uploadpage/floatbutton.css');
 @import url('./uploadpage/navbar.css');
+@import url('./uploadpage/prevblock.css');
+@import url('./uploadpage/selectitem.css');
 @import url('./loginpage/login.css');
 
 main {

@@ -27,7 +27,7 @@ export default function Home() {
     <div className="page">
       <head>
         <title>量表管理平臺</title>
-				<meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="stylesheet" href="../style/index.css" />
       </head>
       {logined == null && (
@@ -37,7 +37,7 @@ export default function Home() {
             <br />
             <br />
           </span>
-					<br/>
+          <br />
           <input
             className="input100"
             id="name-area"
