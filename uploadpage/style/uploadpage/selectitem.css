@@ -27,3 +27,16 @@
 	height: 100px;
 	background-color: white;
 }
+.forupload input[type=file]::file-selector-button ,button{
+  border: none;
+  color: white;
+  padding: 14px 28px;
+  font-size: 16px;
+  cursor: pointer;
+	background-color: #04AA6D;
+}
+.forupload input[type=file]::file-selector-button:hover ,button:hover{
+  background-color: #0b7dda;
+
+}
+
