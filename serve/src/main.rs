@@ -379,10 +379,15 @@ async fn login(Json(input): Json<ToLogin>, pool: &Pool<Postgres>) -> Json<Logine
 }
 async fn register(Json(input): Json<ToLogin>, pool: &Pool<Postgres>) -> Json<Logined> {
     match registinto(pool, input).await {
-        Ok(information) => Json(Logined {
+        Ok(Some(information)) => Json(Logined {
             logined: true,
-            message: information,
+            message: Some(information),
             failed: None,
+        }),
+        Ok(None) => Json(Logined {
+            logined: false,
+            message: None,
+            failed: Some("Has already logined".to_string()),
         }),
         Err(e) => Json(Logined {
             logined: false,
