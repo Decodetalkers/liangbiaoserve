@@ -25,7 +25,10 @@ use tower_http::{
     trace::{DefaultMakeSpan, TraceLayer},
 };
 mod sqlconnect;
-use sqlconnect::{get_folds, get_history, logininto, registinto, storage_score, storageinto};
+use sqlconnect::{
+    get_folds, get_forhelp_students, get_history, logininto, registinto, storage_score,
+    storageinto, studenthelpinto, teacherlogininto,
+};
 mod utils;
 use once_cell::sync::Lazy;
 use utils::*;
@@ -65,6 +68,9 @@ async fn main() {
     let topool5 = Arc::clone(&topool);
     let topool6 = Arc::clone(&topool);
     let topool7 = Arc::clone(&topool);
+    let topool8 = Arc::clone(&topool);
+    let topool9 = Arc::clone(&topool);
+    let topool10 = Arc::clone(&topool);
     //let topooltest = Arc::clone(&topool);
     let app = Router::new()
         //.route("/table", uploadpage)
@@ -107,6 +113,18 @@ async fn main() {
                 .post(|input: Json<ToLogin>| async move { adminlogin(input, &*topool1).await }),
         )
         .route(
+            "/findhelp", 
+            get(|| async {})
+            .post(|input:String| async move {
+                   student_find_for_help(&*topool9, input).await
+            })
+        )
+        .route(
+            "/teacherlogin",
+            get(|| async {})
+                .post(|input: Json<ToLogin>| async move { teacherlogin(input, &*topool8).await }),
+        )
+        .route(
             "/register",
             get(|| async {})
                 .post(|input: Json<ToLogin>| async move { register(input, &*topool2).await }),
@@ -126,6 +144,7 @@ async fn main() {
             get(|| async move { Json(get_all_history(&*&topool7).await.unwrap()) }),
         )
         .route("/folds", get(|| async move { getfolders(&*topool3).await }))
+        .route("/gethelps", get(|| async move { get_students_for_help(&*topool10).await }))
         .route("/image/:id", get(show_image))
         .route("/txt/:id", get(show_txt))
         .route("/json/:id", get(show_json))
@@ -363,6 +382,20 @@ async fn adminlogin(Json(input): Json<ToLogin>, pool: &Pool<Postgres>) -> Json<L
         }),
     }
 }
+async fn teacherlogin(Json(input): Json<ToLogin>, pool: &Pool<Postgres>) -> Json<Logined> {
+    match teacherlogininto(pool, input).await {
+        Ok(information) => Json(Logined {
+            logined: true,
+            message: information,
+            failed: None,
+        }),
+        Err(e) => Json(Logined {
+            logined: false,
+            message: None,
+            failed: Some(e.to_string()),
+        }),
+    }
+}
 async fn login(Json(input): Json<ToLogin>, pool: &Pool<Postgres>) -> Json<Logined> {
     match logininto(pool, input).await {
         Ok(information) => Json(Logined {
@@ -398,6 +431,18 @@ async fn register(Json(input): Json<ToLogin>, pool: &Pool<Postgres>) -> Json<Log
 }
 async fn getfolders(pool: &Pool<Postgres>) -> Json<Option<Vec<FoldTable>>> {
     match get_folds(pool).await {
+        Ok(information) => Json(Some(information)),
+        Err(_) => Json(None),
+    }
+}
+async fn student_find_for_help(pool: &Pool<Postgres>, id: String) -> Json<bool> {
+    match studenthelpinto(pool, id).await {
+        Ok(()) => Json(true),
+        Err(_) => Json(false),
+    }
+}
+async fn get_students_for_help(pool: &Pool<Postgres>) -> Json<Option<Vec<StudentForHelp>>> {
+    match get_forhelp_students(pool).await {
         Ok(information) => Json(Some(information)),
         Err(_) => Json(None),
     }

@@ -68,3 +68,7 @@ impl Display for UploadFailed {
 pub struct FoldTable {
     pub id: String,
 }
+#[derive(sqlx::FromRow, Debug, Serialize, Deserialize)]
+pub struct StudentForHelp {
+    pub id: String,
+}

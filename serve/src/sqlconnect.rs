@@ -1,4 +1,4 @@
-use crate::utils::{FoldTable, Infomation, Score, ToLogin};
+use crate::utils::{FoldTable, Infomation, Score, StudentForHelp, ToLogin};
 use anyhow::Result;
 use sqlx::{Pool, Postgres};
 mod illegaled;
@@ -7,6 +7,20 @@ pub async fn logininto(pool: &Pool<Postgres>, tologin: ToLogin) -> Result<Option
     tologin.checklegal()?;
     let output = sqlx::query_as::<_, Infomation>(&format!(
         "SELECT name, icon from login 
+            where name='{}' AND passward='{}'",
+        tologin.name, tologin.passward
+    ))
+    .fetch_one(pool)
+    .await?;
+    Ok(Some(output))
+}
+pub async fn teacherlogininto(
+    pool: &Pool<Postgres>,
+    tologin: ToLogin,
+) -> Result<Option<Infomation>> {
+    tologin.checklegal()?;
+    let output = sqlx::query_as::<_, Infomation>(&format!(
+        "SELECT name, icon from teacherlogin 
             where name='{}' AND passward='{}'",
         tologin.name, tologin.passward
     ))
@@ -52,6 +66,38 @@ pub async fn storageinto(pool: &Pool<Postgres>, path: String) -> Result<()> {
         .execute(pool)
         .await?;
     Ok(())
+}
+pub async fn studenthelpinto(pool: &Pool<Postgres>, id: String) -> Result<()> {
+    let output = sqlx::query_as::<_, StudentForHelp>(
+        r#"
+        SELECT * from studentforhelp where id = $1
+        "#,
+    )
+    .bind(&id)
+    .fetch_one(pool)
+    .await;
+    if output.is_ok() {
+        return Err(anyhow::anyhow!("Alreadyhave"));
+    }
+    sqlx::query(
+        r#"
+        INSERT INTO studentforhelp (id) VALUES ($1)
+        "#,
+    )
+    .bind(id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+pub async fn get_forhelp_students(pool: &Pool<Postgres>) -> Result<Vec<StudentForHelp>> {
+    let output = sqlx::query_as::<_, StudentForHelp>(
+        r#"
+        select id from studentforhelp
+        "#,
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(output)
 }
 pub async fn get_folds(pool: &Pool<Postgres>) -> Result<Vec<FoldTable>> {
     let output = sqlx::query_as::<_, FoldTable>(
