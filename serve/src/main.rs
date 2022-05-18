@@ -33,7 +33,7 @@ mod utils;
 use once_cell::sync::Lazy;
 use utils::*;
 
-use crate::sqlconnect::{adminlogininto, get_all_history};
+use crate::sqlconnect::{adminlogininto, delete_student_for_help, get_all_history};
 static HOME: Lazy<String> = Lazy::new(|| std::env::var("HOME").unwrap());
 //#[inline]
 //fn home() -> String {
@@ -60,17 +60,18 @@ async fn main() {
         .connect(&students)
         .await
         .unwrap_or_else(|_| panic!("nosuch database"));
-    let topool = Arc::new(pool);
-    let topool1 = Arc::clone(&topool);
-    let topool2 = Arc::clone(&topool);
-    let topool3 = Arc::clone(&topool);
-    let topool4 = Arc::clone(&topool);
-    let topool5 = Arc::clone(&topool);
-    let topool6 = Arc::clone(&topool);
-    let topool7 = Arc::clone(&topool);
-    let topool8 = Arc::clone(&topool);
-    let topool9 = Arc::clone(&topool);
-    let topool10 = Arc::clone(&topool);
+    let topoollogin = Arc::new(pool);
+    let topooladminlogin = Arc::clone(&topoollogin);
+    let topoolregister = Arc::clone(&topoollogin);
+    let topoolfolds = Arc::clone(&topoollogin);
+    let topoolupload = Arc::clone(&topoollogin);
+    let topoolreceive = Arc::clone(&topoollogin);
+    let topoolhistory = Arc::clone(&topoollogin);
+    let topoolgetallhistory = Arc::clone(&topoollogin);
+    let topoolteacher = Arc::clone(&topoollogin);
+    let topoolfindhelp = Arc::clone(&topoollogin);
+    let topoolgethelps = Arc::clone(&topoollogin);
+    let topoolhelpfinish = Arc::clone(&topoollogin);
     //let topooltest = Arc::clone(&topool);
     let app = Router::new()
         //.route("/table", uploadpage)
@@ -93,9 +94,9 @@ async fn main() {
                         250 * 1024 * 1024 /* 250mb */
                     },
                 >| async move {
-                    let (thepath, output) = accept_form(&*&topool4, input).await;
+                    let (thepath, output) = accept_form(&*&topoolupload, input).await;
                     if thepath.is_some() {
-                        storageinto(&*topool4, thepath.unwrap()).await.unwrap();
+                        storageinto(&*topoolupload, thepath.unwrap()).await.unwrap();
                     };
                     output
                 },
@@ -105,46 +106,63 @@ async fn main() {
         .route(
             "/login",
             get(|| async {})
-                .post(|input: Json<ToLogin>| async move { login(input, &*topool).await }),
+                .post(|input: Json<ToLogin>| async move { login(input, &*topoollogin).await }),
         )
         .route(
             "/adminlogin",
-            get(|| async {})
-                .post(|input: Json<ToLogin>| async move { adminlogin(input, &*topool1).await }),
+            get(|| async {}).post(|input: Json<ToLogin>| async move {
+                adminlogin(input, &*topooladminlogin).await
+            }),
         )
         .route(
-            "/findhelp", 
-            get(|| async {})
-            .post(|input:String| async move {
-                   student_find_for_help(&*topool9, input).await
-            })
+            "/findhelp",
+            get(|| async {}).post(|input: String| async move {
+                student_find_for_help(&*topoolfindhelp, input).await
+            }),
         )
         .route(
             "/teacherlogin",
-            get(|| async {})
-                .post(|input: Json<ToLogin>| async move { teacherlogin(input, &*topool8).await }),
+            get(|| async {}).post(|input: Json<ToLogin>| async move {
+                teacherlogin(input, &*topoolteacher).await
+            }),
         )
         .route(
             "/register",
-            get(|| async {})
-                .post(|input: Json<ToLogin>| async move { register(input, &*topool2).await }),
+            get(|| async {}).post(|input: Json<ToLogin>| async move {
+                register(input, &*topoolregister).await
+            }),
         )
         .route(
             "/receive",
-            get(|| async {})
-                .post(|input: Json<Score>| async move { receivescore(input, &*topool5).await }),
+            get(|| async {}).post(|input: Json<Score>| async move {
+                receivescore(input, &*topoolreceive).await
+            }),
         )
         .route(
             "/history",
             get(|| async {})
-                .post(|input: String| async move { posthistory(input, &*topool6).await }),
+                .post(|input: String| async move { posthistory(input, &*topoolhistory).await }),
+        )
+        .route(
+            "/finishhelp",
+            get(|| async {}).post(|input: String| async move {
+                delete_student_for_help(&*topoolhelpfinish, input)
+                    .await
+                    .unwrap()
+            }),
         )
         .route(
             "/allhistory",
-            get(|| async move { Json(get_all_history(&*&topool7).await.unwrap()) }),
+            get(|| async move { Json(get_all_history(&*&topoolgetallhistory).await.unwrap()) }),
         )
-        .route("/folds", get(|| async move { getfolders(&*topool3).await }))
-        .route("/gethelps", get(|| async move { get_students_for_help(&*topool10).await }))
+        .route(
+            "/folds",
+            get(|| async move { getfolders(&*topoolfolds).await }),
+        )
+        .route(
+            "/gethelps",
+            get(|| async move { get_students_for_help(&*topoolgethelps).await }),
+        )
         .route("/image/:id", get(show_image))
         .route("/txt/:id", get(show_txt))
         .route("/json/:id", get(show_json))

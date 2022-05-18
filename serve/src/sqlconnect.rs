@@ -89,6 +89,17 @@ pub async fn studenthelpinto(pool: &Pool<Postgres>, id: String) -> Result<()> {
     .await?;
     Ok(())
 }
+pub async fn delete_student_for_help(pool: &Pool<Postgres>, name: String) -> Result<()> {
+    sqlx::query(
+        r#"
+        delete from studentforhelp where id = $1
+        "#
+        )
+        .bind(name)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
 pub async fn get_forhelp_students(pool: &Pool<Postgres>) -> Result<Vec<StudentForHelp>> {
     let output = sqlx::query_as::<_, StudentForHelp>(
         r#"

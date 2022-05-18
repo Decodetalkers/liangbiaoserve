@@ -56,7 +56,9 @@ export default function Upload({ login }: { login: ToLogin }) {
     Add(value, fileContext, type.txt);
     setvalue("");
   };
-
+	const clearAll = () => {
+		setState([])
+	}
   const uploadFile = () => {
     const formData = new FormData();
     //const login = {
@@ -189,6 +191,7 @@ export default function Upload({ login }: { login: ToLogin }) {
     <>
       <div className="navbar">
         <a>{login.name}</a>
+        <a onClick={clearAll}>Refresh</a>
         <select
           value={selected}
           onChange={handleselectedchange}
