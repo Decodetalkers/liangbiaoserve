@@ -94,7 +94,7 @@ async fn main() {
                         250 * 1024 * 1024 /* 250mb */
                     },
                 >| async move {
-                    let (thepath, output) = accept_form(&*&topoolupload, input).await;
+                    let (thepath, output) = accept_form(&*topoolupload, input).await;
                     if thepath.is_some() {
                         storageinto(&*topoolupload, thepath.unwrap()).await.unwrap();
                     };
@@ -153,7 +153,7 @@ async fn main() {
         )
         .route(
             "/allhistory",
-            get(|| async move { Json(get_all_history(&*&topoolgetallhistory).await.unwrap()) }),
+            get(|| async move { Json(get_all_history(&*topoolgetallhistory).await.unwrap()) }),
         )
         .route(
             "/folds",
